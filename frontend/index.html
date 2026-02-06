@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Prediction Wager Demo</title>
+  </head>
+  <body>
+    <h1>Prediction Wager Demo</h1>
+    <form id="createForm">
+      <div>
+        <label>Prediction: <input id="prediction" value="Bitcoin will reach $100,000 by December 31, 2026" size="80"></label>
+      </div>
+      <div>
+        <label>Player A: <input id="player_a" value="0xAlice..."></label>
+      </div>
+      <div>
+        <label>Stake: <input id="stake" value="100"></label>
+      </div>
+      <div>
+        <label>Deadline: <input id="deadline" value="2026-12-31T23:59:59"></label>
+      </div>
+      <div>
+        <label>Verification Criteria: <input id="criteria" value="Check coinmarketcap.com for BTC price" size="80"></label>
+      </div>
+      <button type="submit">Create Wager</button>
+    </form>
+
+    <div id="created"></div>
+
+    <script>
+      const createForm = document.getElementById('createForm')
+      createForm.addEventListener('submit', async (e) => {
+        e.preventDefault()
+        const body = {
+          prediction: document.getElementById('prediction').value,
+          player_a: document.getElementById('player_a').value,
+          stake_amount: document.getElementById('stake').value,
+          deadline: document.getElementById('deadline').value,
+          verification_criteria: document.getElementById('criteria').value,
+        }
+        const res = await fetch('http://localhost:5000/create', {
+          method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+        })
+        const j = await res.json()
+        document.getElementById('created').innerText = JSON.stringify(j, null, 2)
+      })
+    </script>
+  </body>
+</html>

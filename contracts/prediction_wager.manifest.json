@@ -1,0 +1,10 @@
+{
+  "name": "prediction_wager",
+  "version": "0.1.0",
+  "author": "you",
+  "language": "python",
+  "entry": "contracts/prediction_wager.py",
+  "description": "Prediction Wager contract (two-player bets, verifier integration)",
+  "permissions": ["net", "storage"],
+  "tags": ["prediction", "wager", "genlayer"]
+}

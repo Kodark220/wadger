@@ -1,0 +1,138 @@
+"use client";
+import React, { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/router";
+import Layout from "../../components/Layout";
+import { getReadClient } from "../../lib/genlayerClient";
+
+const CONTRACT = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "";
+
+export default function ProfilePage() {
+  const router = useRouter();
+  const routeAddress = useMemo(() => (router.query.address ? String(router.query.address) : ""), [router.query.address]);
+  const targetAddress = routeAddress === "me" ? "" : routeAddress;
+
+  const [wagers, setWagers] = useState<any[]>([]);
+  const [offset, setOffset] = useState(0);
+  const [limit] = useState(8);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<any | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "resolved" | "waiting" | "verified">("all");
+
+  async function withBusy<T>(label: string, fn: () => Promise<T>) {
+    setBusy(label);
+    setError(null);
+    try {
+      return await fn();
+    } catch (e: any) {
+      setError(e?.message || String(e));
+      throw e;
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function loadPage(nextOffset = 0) {
+    if (!CONTRACT || !targetAddress) return;
+    await withBusy("Loading profile", async () => {
+      const client = getReadClient();
+      const statsResult = await client.readContract({
+        address: CONTRACT,
+        functionName: "get_player_stats_json",
+        args: [targetAddress],
+      });
+      setStats(JSON.parse(statsResult as string));
+
+      const result = await client.readContract({
+        address: CONTRACT,
+        functionName: "list_wagers_json",
+        args: [nextOffset, limit],
+      });
+      const ids = JSON.parse(result as string) as string[];
+      const fetched: any[] = [];
+      for (const id of ids) {
+        const w = await client.readContract({
+          address: CONTRACT,
+          functionName: "get_wager_json",
+          args: [id],
+        });
+        const parsed = JSON.parse(w as string);
+        const addr = targetAddress.toLowerCase();
+        if (
+          parsed.player_a?.toLowerCase() === addr ||
+          parsed.player_b?.toLowerCase() === addr
+        ) {
+          fetched.push(parsed);
+        }
+      }
+      setOffset(nextOffset);
+      setWagers(fetched);
+    });
+  }
+
+  useEffect(() => {
+    if (!targetAddress) return;
+    loadPage(0);
+  }, [targetAddress]);
+
+  return (
+    <Layout>
+      <section className="hero">
+        <div>
+          <div className="eyebrow">Profile</div>
+          <h1>{targetAddress || "Enter an address"}</h1>
+          <p>Wagers where this address is player A or B. Use `/profile/0x...`.</p>
+        </div>
+        <div className="card">
+          <div className="muted">Lookup hint</div>
+          <div className="mono">/profile/0xYourAddress</div>
+        </div>
+      </section>
+
+      <section className="card">
+        <h2>Player Stats</h2>
+        <div className="codeblock">
+          <pre>{stats ? JSON.stringify(stats, null, 2) : "No stats yet."}</pre>
+        </div>
+      </section>
+
+      <section className="card">
+        <h2>Wager History</h2>
+        <div className="row">
+          <button onClick={() => setStatusFilter("all")} className={statusFilter === "all" ? "primary" : ""}>All</button>
+          <button onClick={() => setStatusFilter("active")} className={statusFilter === "active" ? "primary" : ""}>Active</button>
+          <button onClick={() => setStatusFilter("resolved")} className={statusFilter === "resolved" ? "primary" : ""}>Resolved</button>
+          <button onClick={() => setStatusFilter("waiting")} className={statusFilter === "waiting" ? "primary" : ""}>Waiting</button>
+          <button onClick={() => setStatusFilter("verified")} className={statusFilter === "verified" ? "primary" : ""}>Verified</button>
+        </div>
+        <div className="row">
+          <button onClick={() => loadPage(0)} disabled={!!busy}>
+            {busy === "Loading profile" ? "Loading..." : "Refresh"}
+          </button>
+          <div className="row">
+            <button onClick={() => loadPage(Math.max(0, offset - limit))}>Prev</button>
+            <button onClick={() => loadPage(offset + limit)}>Next</button>
+          </div>
+        </div>
+        {error ? <div className="error">{error}</div> : null}
+        <div className="list">
+          {wagers.filter((w) => statusFilter === "all" || w.status === statusFilter).length === 0 ? (
+            <div className="muted">No wagers found in this page.</div>
+          ) : (
+            wagers
+              .filter((w) => statusFilter === "all" || w.status === statusFilter)
+              .map((w) => (
+                <div key={w.id} className="list-item">
+                  <div>
+                    <div className="mono">{w.id}</div>
+                    <div className="muted">{w.prediction}</div>
+                  </div>
+                  <div className="muted">{w.status} • pot {w.pot}</div>
+                </div>
+              ))
+          )}
+        </div>
+      </section>
+    </Layout>
+  );
+}
