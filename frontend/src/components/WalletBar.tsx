@@ -1,10 +1,11 @@
 "use client";
 import React from "react";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
+import { injected } from "wagmi/connectors";
 
 export default function WalletBar() {
   const { address, isConnected } = useAccount();
-  const { connect, connectors, isLoading } = useConnect();
+  const { connect, isLoading } = useConnect();
   const { disconnect } = useDisconnect();
 
   return (
@@ -23,7 +24,7 @@ export default function WalletBar() {
           <div className="wallet-addr muted">Not connected</div>
           <button
             className="btn"
-            onClick={() => connect({ connector: connectors[0] })}
+            onClick={() => connect({ connector: injected() })}
             disabled={isLoading}
           >
             {isLoading ? "Connecting..." : "Connect Wallet"}
