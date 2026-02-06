@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from werkzeug.exceptions import HTTPException
 from flask_cors import CORS
 import asyncio
 import os
@@ -14,6 +15,12 @@ from prediction_wager.contract import PredictionWagerContract
 app = Flask(__name__)
 # Allow browser calls to the relayer endpoints.
 CORS(app, resources={r"/relay/*": {"origins": "*"}, r"/health": {"origins": "*"}})
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    if isinstance(e, HTTPException):
+        return jsonify({"error": e.description}), e.code
+    return jsonify({"error": str(e)}), 500
 contract = PredictionWagerContract()
 nonces: Dict[str, str] = {}
 
