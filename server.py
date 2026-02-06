@@ -12,7 +12,8 @@ from eth_account.messages import encode_defunct
 from prediction_wager.contract import PredictionWagerContract
 
 app = Flask(__name__)
-CORS(app)
+# Allow browser calls to the relayer endpoints.
+CORS(app, resources={r"/relay/*": {"origins": "*"}, r"/health": {"origins": "*"}})
 contract = PredictionWagerContract()
 nonces: Dict[str, str] = {}
 
@@ -86,6 +87,10 @@ def relay_nonce():
     nonce = os.urandom(8).hex()
     nonces[address] = nonce
     return jsonify({"nonce": nonce, "timestamp": int(time.time())})
+
+@app.route('/health', methods=['GET', 'HEAD'])
+def health():
+    return jsonify({"ok": True}), 200
 
 
 @app.route('/create', methods=['POST'])
