@@ -98,14 +98,13 @@ export default function ProfilePage() {
       <section className="hero">
         <div>
           <div className="eyebrow">Profile</div>
-          <h1>{targetAddress || "Connect wallet to view your profile"}</h1>
-          <p>Wagers where this address is player A or B.</p>
+          <h1>Player Dashboard</h1>
+          <p className="muted">Your wager activity and stats.</p>
         </div>
         <div className="card">
-          <div className="muted">Lookup hint</div>
-          <div className="mono">/profile/0xYourAddress</div>
-          <div className="muted" style={{ marginTop: 8 }}>
-            {isConnected ? `Connected: ${connectedAddress}` : "Not connected"}
+          <div className="muted">Wallet status</div>
+          <div className="mono">
+            {isConnected ? "Connected" : "Not connected"}
           </div>
         </div>
       </section>
