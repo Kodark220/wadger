@@ -3,13 +3,18 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../../components/Layout";
 import { getReadClient } from "../../lib/genlayerClient";
+import { useToast } from "../../components/ToastProvider";
+import { formatError } from "../../lib/errorFormat";
+import { isHexAddress } from "../../lib/address";
+import { useAccount } from "wagmi";
 
 const CONTRACT = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "";
 
 export default function ProfilePage() {
   const router = useRouter();
   const routeAddress = useMemo(() => (router.query.address ? String(router.query.address) : ""), [router.query.address]);
-  const targetAddress = routeAddress === "me" ? "" : routeAddress;
+  const { address: connectedAddress, isConnected } = useAccount();
+  const targetAddress = routeAddress === "me" ? (connectedAddress || "") : routeAddress;
 
   const [wagers, setWagers] = useState<any[]>([]);
   const [offset, setOffset] = useState(0);
@@ -18,6 +23,7 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<any | null>(null);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "resolved" | "waiting" | "verified">("all");
+  const { pushToast } = useToast();
 
   async function withBusy<T>(label: string, fn: () => Promise<T>) {
     setBusy(label);
@@ -25,7 +31,9 @@ export default function ProfilePage() {
     try {
       return await fn();
     } catch (e: any) {
-      setError(e?.message || String(e));
+      const msg = formatError(e);
+      setError(msg);
+      pushToast({ title: "Action failed", description: msg, variant: "error" });
       throw e;
     } finally {
       setBusy(null);
@@ -34,14 +42,24 @@ export default function ProfilePage() {
 
   async function loadPage(nextOffset = 0) {
     if (!CONTRACT || !targetAddress) return;
+    if (!isHexAddress(targetAddress)) {
+      const msg = "Invalid address. Use a 0x… Ethereum-style address.";
+      setError(msg);
+      pushToast({ title: "Invalid address", description: msg, variant: "error" });
+      return;
+    }
     await withBusy("Loading profile", async () => {
       const client = getReadClient();
-      const statsResult = await client.readContract({
-        address: CONTRACT,
-        functionName: "get_player_stats_json",
-        args: [targetAddress],
-      });
-      setStats(JSON.parse(statsResult as string));
+      try {
+        const statsResult = await client.readContract({
+          address: CONTRACT,
+          functionName: "get_player_stats_json",
+          args: [targetAddress],
+        });
+        setStats(JSON.parse(statsResult as string));
+      } catch (e) {
+        setStats(null);
+      }
 
       const result = await client.readContract({
         address: CONTRACT,
@@ -80,12 +98,15 @@ export default function ProfilePage() {
       <section className="hero">
         <div>
           <div className="eyebrow">Profile</div>
-          <h1>{targetAddress || "Enter an address"}</h1>
-          <p>Wagers where this address is player A or B. Use `/profile/0x...`.</p>
+          <h1>{targetAddress || "Connect wallet to view your profile"}</h1>
+          <p>Wagers where this address is player A or B.</p>
         </div>
         <div className="card">
           <div className="muted">Lookup hint</div>
           <div className="mono">/profile/0xYourAddress</div>
+          <div className="muted" style={{ marginTop: 8 }}>
+            {isConnected ? `Connected: ${connectedAddress}` : "Not connected"}
+          </div>
         </div>
       </section>
 
