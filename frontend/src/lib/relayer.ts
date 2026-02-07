@@ -19,7 +19,8 @@ export async function relayAction(
   action: "create" | "accept" | "verify" | "appeal" | "resolve",
   payload: Record<string, any>,
   address: string,
-  signMessageAsync: SignMessageAsync
+  signMessageAsync: SignMessageAsync,
+  hasRetried = false
 ) {
   const { nonce, timestamp } = await getNonce(address);
   const message = `GenLayer Wager Relayer\nAction: ${action}\nAddress: ${address}\nNonce: ${nonce}\nTimestamp: ${timestamp}`;
@@ -37,6 +38,12 @@ export async function relayAction(
     }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Relayer error");
+  if (!res.ok) {
+    const msg = data.error || "Relayer error";
+    if (!hasRetried && msg.toLowerCase().includes("nonce")) {
+      return relayAction(action, payload, address, signMessageAsync, true);
+    }
+    throw new Error(msg);
+  }
   return data;
 }
