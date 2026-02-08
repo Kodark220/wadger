@@ -15,6 +15,7 @@ export default function ProfilePage() {
   const routeAddress = useMemo(() => (router.query.address ? String(router.query.address) : ""), [router.query.address]);
   const { address: connectedAddress, isConnected } = useAccount();
   const targetAddress = routeAddress === "me" ? (connectedAddress || "") : routeAddress;
+  const [mounted, setMounted] = useState(false);
 
   const [wagers, setWagers] = useState<any[]>([]);
   const [offset, setOffset] = useState(0);
@@ -24,6 +25,7 @@ export default function ProfilePage() {
   const [stats, setStats] = useState<any | null>(null);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "resolved" | "waiting" | "verified">("all");
   const { pushToast } = useToast();
+  const walletStatus = !mounted ? "—" : isConnected ? "Connected" : "Not connected";
 
   async function withBusy<T>(label: string, fn: () => Promise<T>) {
     setBusy(label);
@@ -89,6 +91,10 @@ export default function ProfilePage() {
   }
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
     if (!targetAddress) return;
     loadPage(0);
   }, [targetAddress]);
@@ -103,9 +109,7 @@ export default function ProfilePage() {
         </div>
         <div className="card">
           <div className="muted">Wallet status</div>
-          <div className="mono">
-            {isConnected ? "Connected" : "Not connected"}
-          </div>
+          <div className="mono">{walletStatus}</div>
         </div>
       </section>
 

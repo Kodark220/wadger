@@ -14,11 +14,7 @@ export default function WalletBar() {
   }, []);
 
   if (!mounted) {
-    return (
-      <div className="wallet">
-        <div className="wallet-addr muted">Not connected</div>
-      </div>
-    );
+    return <div className="wallet" />;
   }
 
   return (

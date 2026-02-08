@@ -34,6 +34,19 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.app.bg-logo::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: url("/genlayer-logo.png") no-repeat center 25% / min(65vw, 520px);
+  opacity: 0.06;
+  pointer-events: none;
+  z-index: 0;
+  filter: saturate(0.9);
 }
 
 .topbar {
@@ -117,6 +130,8 @@ body {
 
 .main {
   padding: 36px 6vw 80px;
+  position: relative;
+  z-index: 1;
 }
 
 a {
@@ -257,6 +272,50 @@ pre {
 .error {
   color: var(--danger);
   font-size: 0.9rem;
+}
+
+.toast-viewport {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 50;
+}
+
+.toast {
+  min-width: 240px;
+  max-width: 360px;
+  background: #0f1420;
+  border: 1px solid #2a3650;
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 16px 40px var(--shadow);
+}
+
+.toast-title {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.toast-desc {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.toast-error {
+  border-color: #5a2b2b;
+  background: linear-gradient(180deg, #1c1215, #121018);
+}
+
+.toast-success {
+  border-color: #1f4b3d;
+  background: linear-gradient(180deg, #0f1c16, #101a18);
+}
+
+.toast-info {
+  border-color: #2a3650;
 }
 
 .spacer {
