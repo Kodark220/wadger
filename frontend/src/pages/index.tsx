@@ -5,6 +5,9 @@ import Layout from "../components/Layout";
 import { getReadClient } from "../lib/genlayerClient";
 import { useAccount, useSignMessage } from "wagmi";
 import { relayAction } from "../lib/relayer";
+import { useToast } from "../components/ToastProvider";
+import { formatError } from "../lib/errorFormat";
+import { isHexAddress } from "../lib/address";
 
 const CONTRACT = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "";
 
@@ -13,6 +16,7 @@ type StatusMap = Record<string, any>;
 export default function LobbyPage() {
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
+  const { pushToast } = useToast();
   const [prediction, setPrediction] = useState(
     "BTC will be above $100,000 on Dec 31 2026"
   );
@@ -43,7 +47,9 @@ export default function LobbyPage() {
     try {
       return await fn();
     } catch (e: any) {
-      setError(e?.message || String(e));
+      const msg = formatError(e);
+      setError(msg);
+      pushToast({ title: "Action failed", description: msg, variant: "error" });
       throw e;
     } finally {
       setBusy(null);
@@ -115,12 +121,23 @@ export default function LobbyPage() {
 
       const stats: Record<string, any> = {};
       for (const addr of list) {
-        const s = await client.readContract({
-          address: CONTRACT,
-          functionName: "get_player_stats_json",
-          args: [addr],
-        });
-        stats[addr] = JSON.parse(s as string);
+        if (!isHexAddress(addr)) {
+          continue;
+        }
+        try {
+          const s = await client.readContract({
+            address: CONTRACT,
+            functionName: "get_player_stats_json",
+            args: [addr],
+          });
+          stats[addr] = JSON.parse(s as string);
+        } catch (e) {
+          stats[addr] = {
+            wins: 0,
+            losses: 0,
+            volume_won: 0,
+          };
+        }
       }
       const sorted = [...list].sort((a, b) => {
         const aw = Number(stats[a]?.wins ?? 0);

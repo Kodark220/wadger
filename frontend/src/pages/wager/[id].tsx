@@ -5,6 +5,8 @@ import Layout from "../../components/Layout";
 import { getReadClient } from "../../lib/genlayerClient";
 import { relayAction } from "../../lib/relayer";
 import { useAccount, useSignMessage } from "wagmi";
+import { useToast } from "../../components/ToastProvider";
+import { formatError } from "../../lib/errorFormat";
 
 const CONTRACT = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "";
 
@@ -13,6 +15,7 @@ export default function WagerPage() {
   const wagerId = useMemo(() => (router.query.id ? String(router.query.id) : ""), [router.query.id]);
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
+  const { pushToast } = useToast();
 
   const [wager, setWager] = useState<any | null>(null);
   const [status, setStatus] = useState<any | null>(null);
@@ -28,7 +31,9 @@ export default function WagerPage() {
     try {
       return await fn();
     } catch (e: any) {
-      setError(e?.message || String(e));
+      const msg = formatError(e);
+      setError(msg);
+      pushToast({ title: "Action failed", description: msg, variant: "error" });
       throw e;
     } finally {
       setBusy(null);
