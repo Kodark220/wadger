@@ -1,11 +1,11 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
-import Layout from "../../components/Layout";
-import { getReadClient } from "../../lib/genlayerClient";
-import { useToast } from "../../components/ToastProvider";
-import { formatError } from "../../lib/errorFormat";
-import { isHexAddress } from "../../lib/address";
+import Layout from "../../src/components/Layout";
+import { getReadClient } from "../../src/lib/genlayerClient";
+import { useToast } from "../../src/components/ToastProvider";
+import { formatError } from "../../src/lib/errorFormat";
+import { isHexAddress } from "../../src/lib/address";
 import { useAccount } from "wagmi";
 
 const CONTRACT = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "";

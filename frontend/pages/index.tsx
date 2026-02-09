@@ -1,13 +1,13 @@
 "use client";
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
-import Layout from "../components/Layout";
-import { getReadClient } from "../lib/genlayerClient";
+import Layout from "../src/components/Layout";
+import { getReadClient } from "../src/lib/genlayerClient";
 import { useAccount, useSignMessage } from "wagmi";
-import { relayAction } from "../lib/relayer";
-import { useToast } from "../components/ToastProvider";
-import { formatError } from "../lib/errorFormat";
-import { isHexAddress } from "../lib/address";
+import { relayAction } from "../src/lib/relayer";
+import { useToast } from "../src/components/ToastProvider";
+import { formatError } from "../src/lib/errorFormat";
+import { isHexAddress } from "../src/lib/address";
 
 const CONTRACT = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "";
 

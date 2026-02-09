@@ -1,12 +1,12 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
-import Layout from "../../components/Layout";
-import { getReadClient } from "../../lib/genlayerClient";
-import { relayAction } from "../../lib/relayer";
+import Layout from "../../src/components/Layout";
+import { getReadClient } from "../../src/lib/genlayerClient";
+import { relayAction } from "../../src/lib/relayer";
 import { useAccount, useSignMessage } from "wagmi";
-import { useToast } from "../../components/ToastProvider";
-import { formatError } from "../../lib/errorFormat";
+import { useToast } from "../../src/components/ToastProvider";
+import { formatError } from "../../src/lib/errorFormat";
 
 const CONTRACT = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "";
 

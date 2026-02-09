@@ -1,10 +1,10 @@
 "use client";
-import "../styles/globals.css";
+import "../src/styles/globals.css";
 import type { AppProps } from "next/app";
 import { WagmiConfig, createConfig, createStorage, http } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ToastProvider } from "../components/ToastProvider";
+import { ToastProvider } from "../src/components/ToastProvider";
 
 const RPC_URL = process.env.NEXT_PUBLIC_GENLAYER_RPC_URL || "https://studio.genlayer.com/api";
 const CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID || 61999, 10);
