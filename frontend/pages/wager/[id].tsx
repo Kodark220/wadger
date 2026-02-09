@@ -22,6 +22,7 @@ export default function WagerPage() {
   const [evidenceUrl, setEvidenceUrl] = useState("https://coinmarketcap.com/currencies/bitcoin/");
   const [appealReason, setAppealReason] = useState("finalize");
   const [stake, setStake] = useState(100);
+  const [stance, setStance] = useState<"agree" | "disagree">("disagree");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,7 +72,7 @@ export default function WagerPage() {
     await withBusy("Accepting wager", async () => {
       await relayAction(
         "accept",
-        { wager_id: wagerId, stake_amount: Number(stake) },
+        { wager_id: wagerId, stake_amount: Number(stake), stance },
         address,
         signMessageAsync
       );
@@ -144,6 +145,24 @@ export default function WagerPage() {
           <button onClick={loadWager} disabled={!!busy}>
             {busy === "Loading wager" ? "Loading..." : "Refresh"}
           </button>
+          {wager ? (
+            <div className="row">
+              <div className="col">
+                <div className="muted">Supporting</div>
+                <div className="mono">
+                  {wager.player_a} ({wager.player_a_stance || "agree"})
+                </div>
+              </div>
+              <div className="col">
+                <div className="muted">Opposing</div>
+                <div className="mono">
+                  {wager.player_b && wager.player_b !== "0x0000000000000000000000000000000000000000"
+                    ? `${wager.player_b} (${wager.player_b_stance || "disagree"})`
+                    : "No opponent yet"}
+                </div>
+              </div>
+            </div>
+          ) : null}
           <div className="codeblock">
             <pre>{wager ? JSON.stringify(wager, null, 2) : "No data yet."}</pre>
           </div>
@@ -163,6 +182,23 @@ export default function WagerPage() {
           <h2>Actions</h2>
           <label>Stake (for accept)</label>
           <input type="number" value={stake} onChange={(e) => setStake(Number(e.target.value))} />
+          <label>Your stance</label>
+          <div className="row">
+            <button
+              className={stance === "agree" ? "primary" : ""}
+              onClick={() => setStance("agree")}
+              type="button"
+            >
+              Agree
+            </button>
+            <button
+              className={stance === "disagree" ? "primary" : ""}
+              onClick={() => setStance("disagree")}
+              type="button"
+            >
+              Disagree
+            </button>
+          </div>
           <label>Evidence URL</label>
           <input value={evidenceUrl} onChange={(e) => setEvidenceUrl(e.target.value)} />
           <label>Appeal Reason</label>
