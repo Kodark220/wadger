@@ -68,6 +68,25 @@ export default function LobbyPage() {
       const ids = JSON.parse(result as string) as string[];
       setOffset(nextOffset);
       setWagerIds(ids);
+      const entries = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const s = await client.readContract({
+              address: CONTRACT,
+              functionName: "get_status_json",
+              args: [id],
+            });
+            return [id, JSON.parse(s as string)] as const;
+          } catch (e) {
+            return [id, null] as const;
+          }
+        })
+      );
+      const nextMap: StatusMap = {};
+      for (const [id, s] of entries) {
+        if (s) nextMap[id] = s;
+      }
+      setStatusMap((m) => ({ ...m, ...nextMap }));
     });
   }
 
@@ -311,6 +330,15 @@ export default function LobbyPage() {
                     ) : (
                       <div className="muted">status not loaded</div>
                     )}
+                    {statusMap[id] ? (
+                      <div className="muted">
+                        A: {statusMap[id].player_a} ({statusMap[id].player_a_stance || "agree"}){" "}
+                        vs B:{" "}
+                        {statusMap[id].player_b && statusMap[id].player_b !== "0x0000000000000000000000000000000000000000"
+                          ? `${statusMap[id].player_b} (${statusMap[id].player_b_stance || "disagree"})`
+                          : "No opponent yet"}
+                      </div>
+                    ) : null}
                   </div>
                   <div className="row">
                     <button onClick={() => loadStatus(id)} disabled={!!busy}>
