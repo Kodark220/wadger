@@ -191,6 +191,28 @@ export default function LobbyPage() {
     });
   }
 
+  async function copyInvite(id: string) {
+    try {
+      const url = `${window.location.origin}/wager/${encodeURIComponent(id)}`;
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const el = document.createElement("textarea");
+        el.value = url;
+        el.style.position = "fixed";
+        el.style.left = "-9999px";
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand("copy");
+        document.body.removeChild(el);
+      }
+      pushToast({ title: "Invite link copied", description: url, variant: "success" });
+    } catch (e: any) {
+      const msg = formatError(e);
+      pushToast({ title: "Copy failed", description: msg, variant: "error" });
+    }
+  }
+
   return (
     <Layout>
       <section className="hero">
@@ -347,6 +369,7 @@ export default function LobbyPage() {
                     <Link className="link" href={`/wager/${encodeURIComponent(id)}`}>
                       Open
                     </Link>
+                    <button onClick={() => copyInvite(id)}>Copy Invite</button>
                   </div>
                 </div>
               ))
