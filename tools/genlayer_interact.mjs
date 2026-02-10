@@ -157,6 +157,27 @@ async function main() {
     return;
   }
 
+  if (cmd === 'username') {
+    if (!PRIVATE_KEY) throw new Error('GENLAYER_PRIVATE_KEY not set');
+    const account = createAccount(parsePrivateKey(PRIVATE_KEY));
+    const client = createClient({ ...clientConfig, account });
+    const username = getArg('--username');
+    if (!username) throw new Error('Missing --username');
+    const hash = await client.writeContract({
+      address: CONTRACT,
+      functionName: 'set_username',
+      args: [username],
+    });
+    const receipt = await client.waitForTransactionReceipt({
+      hash,
+      status: TransactionStatus.ACCEPTED,
+      retries: 50,
+      interval: 4000,
+    });
+    console.log(toJson({ hash, receipt }));
+    return;
+  }
+
   if (cmd === 'get') {
     const client = createClient({ ...clientConfig });
     const wager = getArg('--wager');

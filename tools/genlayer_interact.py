@@ -92,6 +92,7 @@ def main(argv: List[str]) -> None:
             "  python tools/genlayer_interact.py verify --wager ... --evidence-url ...\n"
             "  python tools/genlayer_interact.py appeal --wager ... --reason ... --evidence-url ...\n"
             "  python tools/genlayer_interact.py resolve --wager ...\n"
+            "  python tools/genlayer_interact.py username --username ...\n"
             "  python tools/genlayer_interact.py get --wager ...\n"
         )
 
@@ -147,6 +148,11 @@ def main(argv: List[str]) -> None:
         if not wager_id:
             raise SystemExit("Missing --wager")
         res = call_contract(CONTRACT_ADDRESS, "resolve_wager", [wager_id])
+    elif cmd == "username":
+        username = get_arg("--username")
+        if not username:
+            raise SystemExit("Missing --username")
+        res = call_contract(CONTRACT_ADDRESS, "set_username", [username])
     elif cmd == "get":
         wager_id = get_arg("--wager")
         if not wager_id:

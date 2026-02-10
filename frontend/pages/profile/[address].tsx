@@ -6,7 +6,8 @@ import { getReadClient } from "../../src/lib/genlayerClient";
 import { useToast } from "../../src/components/ToastProvider";
 import { formatError } from "../../src/lib/errorFormat";
 import { isHexAddress } from "../../src/lib/address";
-import { useAccount } from "wagmi";
+import { useAccount, useSignMessage } from "wagmi";
+import { relayAction } from "../../src/lib/relayer";
 
 const CONTRACT = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "";
 
@@ -24,8 +25,11 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<any | null>(null);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "resolved" | "waiting" | "verified">("all");
+  const [username, setUsername] = useState("");
   const { pushToast } = useToast();
+  const { signMessageAsync } = useSignMessage();
   const walletStatus = !mounted ? "—" : isConnected ? "Connected" : "Not connected";
+  const canEditUsername = isConnected && !!connectedAddress && connectedAddress.toLowerCase() === targetAddress.toLowerCase();
 
   async function withBusy<T>(label: string, fn: () => Promise<T>) {
     setBusy(label);
@@ -58,7 +62,11 @@ export default function ProfilePage() {
           functionName: "get_player_stats_json",
           args: [targetAddress],
         });
-        setStats(JSON.parse(statsResult as string));
+        const parsed = JSON.parse(statsResult as string);
+        setStats(parsed);
+        if (typeof parsed?.username === "string") {
+          setUsername(parsed.username);
+        }
       } catch (e) {
         setStats(null);
       }
@@ -99,6 +107,20 @@ export default function ProfilePage() {
     loadPage(0);
   }, [targetAddress]);
 
+  async function updateUsername() {
+    if (!connectedAddress) return;
+    if (!CONTRACT) return setError("Set NEXT_PUBLIC_CONTRACT_ADDRESS");
+    await withBusy("Updating username", async () => {
+      await relayAction(
+        "username",
+        { username },
+        connectedAddress,
+        signMessageAsync
+      );
+      await loadPage(0);
+    });
+  }
+
   return (
     <Layout>
       <section className="hero">
@@ -118,6 +140,24 @@ export default function ProfilePage() {
         <div className="codeblock">
           <pre>{stats ? JSON.stringify(stats, null, 2) : "No stats yet."}</pre>
         </div>
+      </section>
+
+      <section className="card">
+        <h2>Set Username</h2>
+        <div className="row">
+          <input
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Enter a username"
+            disabled={!canEditUsername}
+          />
+          <button onClick={updateUsername} disabled={!canEditUsername || !!busy}>
+            {busy === "Updating username" ? "Updating..." : "Save"}
+          </button>
+        </div>
+        {!canEditUsername ? (
+          <div className="muted">Connect the same wallet as this profile to update the username.</div>
+        ) : null}
       </section>
 
       <section className="card">

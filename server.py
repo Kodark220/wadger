@@ -207,6 +207,14 @@ def relay_resolve():
     out = _run_node("resolve", args)
     return jsonify({"result": out})
 
+@app.route('/relay/username', methods=['POST'])
+def relay_username():
+    data = request.json or {}
+    _verify_signature(data, "username")
+    args = ["--username", data["username"]]
+    out = _run_node("username", args)
+    return jsonify({"result": out})
+
 
 @app.route('/aggregate_and_submit', methods=['POST'])
 def aggregate_and_submit_endpoint():

@@ -268,10 +268,6 @@ export default function LobbyPage() {
         <div>
           <div className="eyebrow">Lobby</div>
           <h1>Find a wager or create a new one.</h1>
-          <p>
-            This frontend reads on-chain with GenLayer JS and uses a relayer for writes,
-            so users only connect a wallet to sign a message.
-          </p>
         </div>
         <div className="card">
           <div className="muted">Connect Wallet (Identity)</div>
@@ -463,10 +459,12 @@ export default function LobbyPage() {
               sortedPlayers.map((addr, idx) => {
                 const s = playerStats[addr];
                 const rank = playerOffset + idx + 1;
+                const displayName = s?.username ? s.username : addr;
                 return (
                   <div key={addr} className="list-item">
                     <div>
-                      <div className="mono">#{rank} {addr}</div>
+                      <div className="mono">#{rank} {displayName}</div>
+                      {s?.username ? <div className="muted">{addr}</div> : null}
                       <div className="muted">
                         W {s?.wins ?? 0} • L {s?.losses ?? 0} • Vol {s?.volume_won ?? 0}
                       </div>

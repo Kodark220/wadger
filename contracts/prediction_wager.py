@@ -143,6 +143,7 @@ class PlayerStats:
     volume_contributed: u256
     volume_won: u256
     last_updated: str
+    username: str
 
 
 class PredictionWager(gl.Contract):
@@ -191,7 +192,7 @@ class PredictionWager(gl.Contract):
 
     def _new_player_stats(self) -> PlayerStats:
         return gl.storage.inmem_allocate(
-            PlayerStats, u256(0), u256(0), u256(0), u256(0), u256(0), u256(0), self._now_iso()
+            PlayerStats, u256(0), u256(0), u256(0), u256(0), u256(0), u256(0), self._now_iso(), ""
         )
 
     def _touch_player(self, addr: Address):
@@ -603,6 +604,7 @@ class PredictionWager(gl.Contract):
                 "volume_contributed": 0,
                 "volume_won": 0,
                 "last_updated": "",
+                "username": "",
             }
         s = self.player_stats[player]
         return {
@@ -613,6 +615,7 @@ class PredictionWager(gl.Contract):
             "volume_contributed": int(s.volume_contributed),
             "volume_won": int(s.volume_won),
             "last_updated": s.last_updated,
+            "username": s.username,
         }
 
     @gl.public.view
@@ -633,6 +636,21 @@ class PredictionWager(gl.Contract):
                 result.append(str(self.player_index[key]))
             i += 1
         return result
+
+    @gl.public.write
+    def set_username(self, username: str):
+        if not username:
+            raise Exception("Username is required")
+        trimmed = username.strip()
+        if len(trimmed) == 0:
+            raise Exception("Username is required")
+        if len(trimmed) > 32:
+            raise Exception("Username is too long")
+        self._touch_player(gl.message.sender_address)
+        stats = self.player_stats[gl.message.sender_address]
+        stats.username = trimmed
+        stats.last_updated = self._now_iso()
+        self.player_stats[gl.message.sender_address] = stats
 
     @gl.public.view
     def get_leaderboard(self, offset: int, limit: int):
@@ -659,6 +677,7 @@ class PredictionWager(gl.Contract):
                 entries.append(
                     {
                         "address": str(addr),
+                        "username": s.username if addr in self.player_stats else "",
                         "wins": wins,
                         "losses": losses,
                         "volume_won": volume_won,

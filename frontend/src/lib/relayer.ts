@@ -16,7 +16,7 @@ export async function getNonce(address: string) {
 }
 
 export async function relayAction(
-  action: "create" | "accept" | "verify" | "appeal" | "resolve",
+  action: "create" | "accept" | "verify" | "appeal" | "resolve" | "username",
   payload: Record<string, any>,
   address: string,
   signMessageAsync: SignMessageAsync,
