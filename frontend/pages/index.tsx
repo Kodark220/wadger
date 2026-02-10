@@ -38,8 +38,31 @@ export default function LobbyPage() {
   const [playerOffset, setPlayerOffset] = useState(0);
   const [playerLimit, setPlayerLimit] = useState(8);
   const [wagerFilter, setWagerFilter] = useState<"all" | "active" | "resolved" | "waiting" | "verified">("all");
+  const [leaderSort, setLeaderSort] = useState<"wins" | "volume_won">("wins");
 
   const canWrite = useMemo(() => isConnected && !!CONTRACT, [isConnected]);
+  const sortedPlayers = useMemo(() => {
+    const list = [...players];
+    list.sort((a, b) => {
+      const aStats = playerStats[a] || {};
+      const bStats = playerStats[b] || {};
+      if (leaderSort === "volume_won") {
+        const av = Number(aStats.volume_won ?? 0);
+        const bv = Number(bStats.volume_won ?? 0);
+        if (bv !== av) return bv - av;
+        const aw = Number(aStats.wins ?? 0);
+        const bw = Number(bStats.wins ?? 0);
+        return bw - aw;
+      }
+      const aw = Number(aStats.wins ?? 0);
+      const bw = Number(bStats.wins ?? 0);
+      if (bw !== aw) return bw - aw;
+      const av = Number(aStats.volume_won ?? 0);
+      const bv = Number(bStats.volume_won ?? 0);
+      return bv - av;
+    });
+    return list;
+  }, [players, playerStats, leaderSort]);
 
   async function withBusy<T>(label: string, fn: () => Promise<T>) {
     setBusy(label);
@@ -129,6 +152,31 @@ export default function LobbyPage() {
     if (!CONTRACT) return setError("Set NEXT_PUBLIC_CONTRACT_ADDRESS");
     await withBusy("Loading leaderboard", async () => {
       const client = getReadClient();
+      try {
+        const result = await client.readContract({
+          address: CONTRACT,
+          functionName: "get_leaderboard_json",
+          args: [nextOffset, playerLimit],
+        });
+        const rows = JSON.parse(result as string) as Array<{
+          address: string;
+          wins: number;
+          losses: number;
+          volume_won: number;
+          volume_contributed: number;
+        }>;
+        const stats: Record<string, any> = {};
+        for (const row of rows) {
+          stats[row.address] = row;
+        }
+        setPlayers(rows.map((row) => row.address));
+        setPlayerStats(stats);
+        setPlayerOffset(nextOffset);
+        return;
+      } catch (_e) {
+        // Fallback for older contracts without get_leaderboard_json
+      }
+
       const result = await client.readContract({
         address: CONTRACT,
         functionName: "list_players_json",
@@ -155,6 +203,7 @@ export default function LobbyPage() {
             wins: 0,
             losses: 0,
             volume_won: 0,
+            volume_contributed: 0,
           };
         }
       }
@@ -399,17 +448,25 @@ export default function LobbyPage() {
               <button onClick={() => loadPlayers(Math.max(0, playerOffset - playerLimit))}>Prev</button>
               <button onClick={() => loadPlayers(playerOffset + playerLimit)}>Next</button>
             </div>
+            <div className="row">
+              <label className="muted">Sort</label>
+              <select value={leaderSort} onChange={(e) => setLeaderSort(e.target.value as "wins" | "volume_won")}>
+                <option value="wins">Wins</option>
+                <option value="volume_won">Volume Won</option>
+              </select>
+            </div>
           </div>
           <div className="list">
-            {players.length === 0 ? (
+            {sortedPlayers.length === 0 ? (
               <div className="muted">No players loaded yet.</div>
             ) : (
-              players.map((addr) => {
+              sortedPlayers.map((addr, idx) => {
                 const s = playerStats[addr];
+                const rank = playerOffset + idx + 1;
                 return (
                   <div key={addr} className="list-item">
                     <div>
-                      <div className="mono">{addr}</div>
+                      <div className="mono">#{rank} {addr}</div>
                       <div className="muted">
                         W {s?.wins ?? 0} • L {s?.losses ?? 0} • Vol {s?.volume_won ?? 0}
                       </div>

@@ -88,7 +88,7 @@ def main(argv: List[str]) -> None:
         raise SystemExit(
             "Usage:\n"
             "  python tools/genlayer_interact.py create --prediction ... --stake 100 --deadline ...\n"
-            "  python tools/genlayer_interact.py accept --wager ... --stake 100\n"
+            "  python tools/genlayer_interact.py accept --wager ... --stake 100 --stance agree|disagree\n"
             "  python tools/genlayer_interact.py verify --wager ... --evidence-url ...\n"
             "  python tools/genlayer_interact.py appeal --wager ... --reason ... --evidence-url ...\n"
             "  python tools/genlayer_interact.py resolve --wager ...\n"
@@ -124,10 +124,11 @@ def main(argv: List[str]) -> None:
         )
     elif cmd == "accept":
         wager_id = get_arg("--wager")
+        stance = get_arg("--stance", "disagree")
         stake = int(get_arg("--stake", "0") or "0")
         if not wager_id:
             raise SystemExit("Missing --wager")
-        res = call_contract(CONTRACT_ADDRESS, "accept_wager", [wager_id], value=stake)
+        res = call_contract(CONTRACT_ADDRESS, "accept_wager", [wager_id, stance], value=stake)
     elif cmd == "verify":
         wager_id = get_arg("--wager")
         evidence_url = get_arg("--evidence-url", "")

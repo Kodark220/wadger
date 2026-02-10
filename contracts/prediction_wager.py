@@ -119,6 +119,8 @@ class Wager:
     prediction: str
     player_a: Address
     player_b: Address
+    player_a_stance: str
+    player_b_stance: str
     stake_amount: u256
     deadline: str
     category: str
@@ -215,6 +217,8 @@ class PredictionWager(gl.Contract):
             prediction,
             player_a,
             ZERO_ADDRESS,
+            "agree",
+            "",
             stake_u,
             deadline,
             category,
@@ -322,17 +326,21 @@ class PredictionWager(gl.Contract):
         self.player_stats[wager.player_a] = stats
 
     @gl.public.write.payable
-    def accept_wager(self, wager_id: str):
+    def accept_wager(self, wager_id: str, stance: Optional[str] = None):
         w = self._get_wager(wager_id)
         if w.status != "waiting":
             raise Exception("Wager is not available to accept")
         if gl.message.sender_address == w.player_a:
             raise Exception("Creator cannot accept their own wager")
+        normalized = (stance or "disagree").strip().lower()
+        if normalized not in ("agree", "disagree"):
+            raise Exception("Stance must be 'agree' or 'disagree'")
         # Studio/Dev fallback: allow zero-value calls and trust stored stake_amount.
         if gl.message.value != u256(0) and gl.message.value != w.stake_amount:
             raise Exception("Stake payment must match the original stake")
 
         w.player_b = gl.message.sender_address
+        w.player_b_stance = normalized
         w.status = "active"
         if gl.message.value == u256(0):
             w.pot = u256(w.pot + w.stake_amount)
@@ -420,12 +428,24 @@ class PredictionWager(gl.Contract):
         if not w.verification.is_final:
             raise Exception("Verification is not final; submit an appeal to finalize")
 
-        if w.verification.outcome == "YES":
-            winner = w.player_a
-        elif w.verification.outcome == "NO":
-            winner = w.player_b
-        else:
+        outcome = w.verification.outcome
+        if outcome not in ("YES", "NO"):
             raise Exception("Invalid verification outcome")
+
+        supporters = []
+        opposers = []
+        if w.player_a != ZERO_ADDRESS:
+            if w.player_a_stance == "disagree":
+                opposers.append(w.player_a)
+            else:
+                supporters.append(w.player_a)
+        if w.player_b != ZERO_ADDRESS and w.player_b_stance:
+            if w.player_b_stance == "disagree":
+                opposers.append(w.player_b)
+            else:
+                supporters.append(w.player_b)
+
+        winners = supporters if outcome == "YES" else opposers
 
         w.status = "resolved"
         w.resolved_at = self._now_iso()
@@ -433,42 +453,71 @@ class PredictionWager(gl.Contract):
         self.wagers[wager_id] = w
         self.total_wagers_resolved = u256(self.total_wagers_resolved + u256(1))
 
-        # Update winner/loser stats.
-        self._touch_player(winner)
-        winner_stats = self.player_stats[winner]
-        winner_stats.wins = u256(winner_stats.wins + u256(1))
-        winner_stats.volume_won = u256(winner_stats.volume_won + payout)
-        winner_stats.last_updated = self._now_iso()
-        self.player_stats[winner] = winner_stats
+        participants = []
+        if w.player_a != ZERO_ADDRESS:
+            participants.append(w.player_a)
+        if w.player_b != ZERO_ADDRESS:
+            participants.append(w.player_b)
 
-        if winner == w.player_a:
-            loser = w.player_b
-        else:
-            loser = w.player_a
-        if loser != ZERO_ADDRESS:
-            self._touch_player(loser)
-            loser_stats = self.player_stats[loser]
-            loser_stats.losses = u256(loser_stats.losses + u256(1))
-            loser_stats.last_updated = self._now_iso()
-            self.player_stats[loser] = loser_stats
+        payout_map = {}
+        if winners:
+            if len(winners) == 1:
+                payout_map[winners[0]] = w.pot
+            else:
+                count = u256(len(winners))
+                each = u256(w.pot // count)
+                remainder = u256(w.pot - each * count)
+                idx = 0
+                for addr in winners:
+                    payout_map[addr] = each + (remainder if idx == 0 else u256(0))
+                    idx += 1
+
+        # Update winner/loser stats.
+        if winners:
+            for addr in participants:
+                self._touch_player(addr)
+                stats = self.player_stats[addr]
+                if addr in winners:
+                    stats.wins = u256(stats.wins + u256(1))
+                    stats.volume_won = u256(stats.volume_won + payout_map.get(addr, u256(0)))
+                else:
+                    stats.losses = u256(stats.losses + u256(1))
+                stats.last_updated = self._now_iso()
+                self.player_stats[addr] = stats
 
         # Transfer escrowed funds to the winner if the runtime supports it.
         # Studio runtime does not expose ContractAt, so we guard calls.
-        if hasattr(gl, "ContractAt"):
-            try:
-                gl.ContractAt(winner).emit_transfer(value=payout)
-            except Exception:
-                pass
-        elif hasattr(gl, "transfer"):
-            try:
-                gl.transfer(to=winner, value=payout)
-            except Exception:
-                pass
-        elif hasattr(gl, "emit_transfer"):
-            try:
-                gl.emit_transfer(to=winner, value=payout)
-            except Exception:
-                pass
+        def _pay(to_addr: Address, value: u256):
+            if value <= u256(0):
+                return
+            if hasattr(gl, "ContractAt"):
+                try:
+                    gl.ContractAt(to_addr).emit_transfer(value=value)
+                    return
+                except Exception:
+                    pass
+            if hasattr(gl, "transfer"):
+                try:
+                    gl.transfer(to=to_addr, value=value)
+                    return
+                except Exception:
+                    pass
+            if hasattr(gl, "emit_transfer"):
+                try:
+                    gl.emit_transfer(to=to_addr, value=value)
+                except Exception:
+                    pass
+
+        if not winners:
+            if w.player_b != ZERO_ADDRESS:
+                half = u256(w.pot // u256(2))
+                _pay(w.player_a, half)
+                _pay(w.player_b, u256(w.pot - half))
+            else:
+                _pay(w.player_a, w.pot)
+        else:
+            for addr in winners:
+                _pay(addr, payout_map.get(addr, u256(0)))
 
     @gl.public.view
     def get_wager(self, wager_id: str):
@@ -478,6 +527,8 @@ class PredictionWager(gl.Contract):
             "prediction": w.prediction,
             "player_a": str(w.player_a),
             "player_b": str(w.player_b),
+            "player_a_stance": w.player_a_stance,
+            "player_b_stance": w.player_b_stance,
             "stake_amount": int(w.stake_amount),
             "deadline": w.deadline,
             "category": w.category,
@@ -502,6 +553,8 @@ class PredictionWager(gl.Contract):
             "status": w.status,
             "player_a": str(w.player_a),
             "player_b": str(w.player_b),
+            "player_a_stance": w.player_a_stance,
+            "player_b_stance": w.player_b_stance,
             "pot": int(w.pot),
             "has_verification": w.has_verification,
             "is_final": w.verification.is_final if w.has_verification else False,
@@ -582,8 +635,51 @@ class PredictionWager(gl.Contract):
         return result
 
     @gl.public.view
+    def get_leaderboard(self, offset: int, limit: int):
+        if offset < 0 or limit < 0:
+            raise Exception("Invalid pagination")
+        total = int(self.player_count)
+        entries = []
+        i = 0
+        while i < total:
+            key = u256(i)
+            if key in self.player_index:
+                addr = self.player_index[key]
+                if addr in self.player_stats:
+                    s = self.player_stats[addr]
+                    wins = int(s.wins)
+                    losses = int(s.losses)
+                    volume_won = int(s.volume_won)
+                    volume_contributed = int(s.volume_contributed)
+                else:
+                    wins = 0
+                    losses = 0
+                    volume_won = 0
+                    volume_contributed = 0
+                entries.append(
+                    {
+                        "address": str(addr),
+                        "wins": wins,
+                        "losses": losses,
+                        "volume_won": volume_won,
+                        "volume_contributed": volume_contributed,
+                    }
+                )
+            i += 1
+
+        entries.sort(
+            key=lambda e: (-e["wins"], -e["volume_won"], -e["volume_contributed"], e["address"])
+        )
+        end = offset + limit
+        return entries[offset:end]
+
+    @gl.public.view
     def list_players_json(self, offset: int, limit: int) -> str:
         return json.dumps(self.list_players(offset, limit))
+
+    @gl.public.view
+    def get_leaderboard_json(self, offset: int, limit: int) -> str:
+        return json.dumps(self.get_leaderboard(offset, limit))
 
     @gl.public.view
     def get_global_stats(self):

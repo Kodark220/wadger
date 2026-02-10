@@ -11,6 +11,8 @@ class Wager:
     prediction: str
     player_a: str
     player_b: Optional[str]
+    player_a_stance: str
+    player_b_stance: str
     stake_amount: float
     deadline: datetime.datetime
     category: Optional[str]
@@ -40,6 +42,8 @@ class PredictionWagerContract:
             prediction=prediction,
             player_a=player_a,
             player_b=None,
+            player_a_stance="agree",
+            player_b_stance="",
             stake_amount=stake_amount,
             deadline=deadline_dt,
             category=category,
@@ -48,11 +52,15 @@ class PredictionWagerContract:
         self.wagers[wid] = w
         return {"wager_id": wid, "waiting_for_opponent": True}
 
-    async def accept_wager(self, *, wager_id: str, player_b: str) -> dict:
+    async def accept_wager(self, *, wager_id: str, player_b: str, stance: Optional[str] = None) -> dict:
         w = self._get_wager(wager_id)
         if w.status != "waiting":
             raise ValueError("Wager is not available to accept")
+        normalized = (stance or "disagree").strip().lower()
+        if normalized not in ("agree", "disagree"):
+            raise ValueError("Stance must be 'agree' or 'disagree'")
         w.player_b = player_b
+        w.player_b_stance = normalized
         w.status = "active"
         w.pot = w.stake_amount * 2
         return {"total_pot": w.pot, "status": w.status}
@@ -92,7 +100,10 @@ class PredictionWagerContract:
                 confidence = 0.6
                 evidence = "Verifier failure — replace with GenLayer validators"
 
-        winner = w.player_a if outcome == "YES" else w.player_b
+        if outcome == "YES":
+            winner = w.player_a if w.player_a_stance != "disagree" else w.player_b
+        else:
+            winner = w.player_b if w.player_b_stance == "disagree" else w.player_a
         can_appeal = confidence < 0.8
         res = {
             "outcome": outcome,

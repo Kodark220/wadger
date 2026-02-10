@@ -72,12 +72,13 @@ async function main() {
     const account = createAccount(parsePrivateKey(PRIVATE_KEY));
     const client = createClient({ ...clientConfig, account });
     const wager = getArg('--wager');
+    const stance = getArg('--stance', 'disagree');
     const stake = BigInt(getArg('--stake', '0'));
     if (!wager) throw new Error('Missing --wager');
     const hash = await client.writeContract({
       address: CONTRACT,
       functionName: 'accept_wager',
-      args: [wager],
+      args: [wager, stance],
       value: stake,
     });
     const receipt = await client.waitForTransactionReceipt({

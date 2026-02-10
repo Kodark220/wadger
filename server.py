@@ -117,7 +117,7 @@ def create():
 @app.route('/accept', methods=['POST'])
 def accept():
     data = request.json
-    res = run_async(contract.accept_wager(wager_id=data['wager_id'], player_b=data['player_b']))
+    res = run_async(contract.accept_wager(wager_id=data['wager_id'], player_b=data['player_b'], stance=data.get('stance')))
     return jsonify(res)
 
 
@@ -174,7 +174,8 @@ def relay_create():
 def relay_accept():
     data = request.json or {}
     _verify_signature(data, "accept")
-    args = ["--wager", data["wager_id"], "--stake", str(data.get("stake_amount", 0))]
+    stance = data.get("stance", "disagree")
+    args = ["--wager", data["wager_id"], "--stake", str(data.get("stake_amount", 0)), "--stance", stance]
     out = _run_node("accept", args)
     return jsonify({"result": out})
 
